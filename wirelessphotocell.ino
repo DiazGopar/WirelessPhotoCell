@@ -3,9 +3,10 @@
 #include "printf.h"
 #include "RF24.h"
 #include "configuration.h"
+#include "pins.h"
 
 // instantiate an object for the nRF24L01 transceiver
-RF24 radio(7, 8); // using pin 7 for the CE pin, and pin 8 for the CSN pin
+RF24 radio(CE_PIN, CSN_PIN); // using pin 7 for the CE pin, and pin 8 for the CSN pin
 
 // Let these addresses be used for the pair
 uint8_t address[][6] = {"1Node", "2Node"};
@@ -23,6 +24,7 @@ bool role = false;  // true = TX role, false = RX role
 // a single float number that will be incremented
 // on every successful transmission
 float payload = 0.0;
+Configuration config = Configuration(OPERATION_MODE_PIN);
 
 
 void setup()
