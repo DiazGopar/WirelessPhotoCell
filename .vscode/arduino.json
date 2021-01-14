@@ -1,4 +1,5 @@
 {
     "board": "arduino:avr:nano",
-    "configuration": "cpu=atmega328old"
+    "configuration": "cpu=atmega328old",
+    "sketch": "wirelessphotocell.ino"
 }
