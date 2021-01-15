@@ -56,6 +56,15 @@ void setup()
         display.blink(500,30);
         while (true) {} // hold in infinite loop
     }
+    // Set the PA Level low 
+    radio.setPALevel(RF24_PA_MAX);  // RF24_PA_MAX is default.
+    // save on transmission time by setting the radio to only transmit the
+    // number of bytes we need 
+    radio.setPayloadSize(sizeof(payload)); // float datatype occupies 4 bytes
+    // set the TX address of the RX node into the TX pipe
+    radio.openWritingPipe(address[radioNumber]);     // always uses pipe 0
+    // set the RX address of the TX node into a RX pipe
+    radio.openReadingPipe(1, address[!radioNumber]); // using pipe 1
     
     Serial.println(F("radio hardware initialized!!"));
     if(master)
@@ -64,6 +73,7 @@ void setup()
         display.clear();
         display.print(F("MSTR"));
         Serial.println(F("Node Configured in Master Mode"));
+        radio.stopListening();  // put radio in TX mode
     }  
     else
     {
@@ -71,8 +81,14 @@ void setup()
         display.clear();
         display.print(F("SLV"));
         Serial.println(F("Node Configured in Slave Mode"));
+        radio.startListening(); // put radio in RX mode
     }
-    display.blink();
+    display.blink(500);
+
+    // For debugging info
+    printf_begin();             // needed only once for printing details
+    radio.printDetails();       // (smaller) function that prints raw register values
+    radio.printPrettyDetails(); // (larger) function that prints human readable data
       
 }
 
