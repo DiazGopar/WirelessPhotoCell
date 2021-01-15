@@ -1,5 +1,6 @@
 {
     "board": "arduino:avr:nano",
     "configuration": "cpu=atmega328old",
-    "sketch": "wirelessphotocell.ino"
+    "sketch": "wirelessphotocell.ino",
+    "port": "/dev/tty.usbserial-145420"
 }
