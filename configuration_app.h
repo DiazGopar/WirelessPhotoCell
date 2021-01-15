@@ -1,5 +1,5 @@
-#ifndef _CONFIGURATION_H_
-#define _CONFIGURATION_H_
+#ifndef _CONFIGURATION_APP_H_
+#define _CONFIGURATION_APP_H_
 
 
 class Configuration {

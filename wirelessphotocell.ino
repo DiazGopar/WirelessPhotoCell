@@ -4,7 +4,7 @@
 #include "RF24.h"
 #include "SevenSegmentTM1637.h"
 #include "SevenSegmentExtended.h"
-#include "configuration.h"
+#include "configuration_app.h"
 #include "pins_app.h"
 
 // instantiate an object for the nRF24L01 transceiver
