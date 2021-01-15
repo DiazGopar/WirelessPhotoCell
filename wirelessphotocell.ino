@@ -6,7 +6,7 @@
 #include "pins.h"
 
 // instantiate an object for the nRF24L01 transceiver
-RF24 radio(CE_PIN, CSN_PIN); // using pin 7 for the CE pin, and pin 8 for the CSN pin
+RF24 radio(CE_PIN, CSN_PIN); 
 
 // Let these addresses be used for the pair
 uint8_t address[][6] = {"1Node", "2Node"};
@@ -24,12 +24,36 @@ bool role = false;  // true = TX role, false = RX role
 // a single float number that will be incremented
 // on every successful transmission
 float payload = 0.0;
+
+// Used for determining what operation mode use: Master or Slave
 Configuration config = Configuration(OPERATION_MODE_PIN);
+
+bool master = false; // true = master, false = slave node. Master is the starting node, and slave are partial timers
 
 
 void setup()
 {
+    Serial.begin(115200);
+    while (!Serial) {} // some boards need to wait to ensure access to serial over USB
+    
+    master = config.readConfiguration();
 
+    // initialize the transceiver on the SPI bus
+    if (!radio.begin()) 
+    {
+        Serial.println(F("radio hardware is not responding!!"));
+        while (true) {} // hold in infinite loop
+    }
+    
+    if(master)
+    {
+        //Config like transmiter node.
+    }  
+    else
+    {
+        //Config like a receiver node.
+    }
+      
 }
 
 void loop()
