@@ -1,5 +1,5 @@
-#ifndef _PINS_H_
-#define _PINS_H_
+#ifndef _PINS_APP_H_
+#define _PINS_APP_H_
 
 #define OPERATION_MODE_PIN 5
 #define CE_PIN 7

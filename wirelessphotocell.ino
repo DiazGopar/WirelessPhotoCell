@@ -5,7 +5,7 @@
 #include "SevenSegmentTM1637.h"
 #include "SevenSegmentExtended.h"
 #include "configuration.h"
-#include "pins.h"
+#include "pins_app.h"
 
 // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN); 
@@ -43,15 +43,17 @@ void setup()
 
     display.begin();            // initializes the 7-segment display
     display.setBacklight(100); 
-    
-    master = config.readConfiguration();
-
     display.print(F("INIT"));
-
+    master = config.readConfiguration();
+    delay(1000);
+    
     // initialize the transceiver on the SPI bus
     if (!radio.begin()) 
     {
         Serial.println(F("radio hardware is not responding!!"));
+        display.clear(); //
+        display.print(F("ERROR"));
+        display.blink(500,30);
         while (true) {} // hold in infinite loop
     }
     
@@ -61,14 +63,14 @@ void setup()
         //Config like transmiter node.
         display.clear();
         display.print(F("MSTR"));
-        Serial.println(F("Configured like Master Node"));
+        Serial.println(F("Node Configured in Master Mode"));
     }  
     else
     {
         //Config like a receiver node.
         display.clear();
         display.print(F("SLV"));
-        Serial.println(F("Configured like Slave Node"));
+        Serial.println(F("Node Configured in Slave Mode"));
     }
     display.blink();
       
