@@ -5,8 +5,8 @@
 #define CE_PIN 7
 #define CSN_PIN 8
 
-#define PHOTOCELL_DATA_PIN      2
-#define ANALOG_ENABLE_PIN       3
+#define PHOTOCELL_DATA_PIN      2       //Interrupt attachable
+#define ANALOG_ENABLE_PIN       3       //Interrupt attachable
 #define OUTPUT_SIGNAL_PIN       4
 #define TM1637_CLK_PIN          6
 #define TM1637_DIO_PIN          A3

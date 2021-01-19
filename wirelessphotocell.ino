@@ -28,7 +28,7 @@ bool radioNumber = 1; // 0 uses address[0] to transmit, 1 uses address[1] to tra
 // For this example, we'll be using a payload containing
 // a single float number that will be incremented
 // on every successful transmission
-float payload = 0.0;
+uint8_t payload = 0;
 
 // Used for determining what operation mode use: Master or Slave
 Configuration config = Configuration(OPERATION_MODE_PIN);
@@ -40,6 +40,27 @@ unsigned long start_time = 0; //Counter to display time in 7-segments
 uint8_t seconds = 0;
 uint8_t hundrethseconds = 0;
 bool running = false;
+
+const int timeThreshold = 50;
+long startTime = 0;
+bool photoCellState = false;
+
+//ISR function to detect photoCell cut
+void photoCellActivated() 
+{
+    if (millis() - startTime > timeThreshold)
+    {
+        if(digitalRead(PHOTOCELL_DATA_PIN) == 1)
+        {
+            photoCellState = true;
+        }
+        else
+        {
+            photoCellState = false;   
+        }
+        startTime = millis();
+    }
+}
 
 
 void setup()
@@ -53,8 +74,9 @@ void setup()
     display.print(F("INIT"));
     //Initialize Configuration Object to determining master or slave functionality
     master = config.readConfiguration();
-    
-    
+    //Initialize Photo Data Cell Pin
+    pinMode(PHOTOCELL_DATA_PIN, INPUT);
+    attachInterrupt(digitalPinToInterrupt(PHOTOCELL_DATA_PIN), photoCellActivated, CHANGE);
     delay(1000);
     
     // initialize the transceiver on the SPI bus
@@ -107,6 +129,18 @@ void setup()
     printf_begin();             // needed only once for printing details
     radio.printDetails();       // (smaller) function that prints raw register values
     radio.printPrettyDetails(); // (larger) function that prints human readable data
+
+    //Send initial frame to all nodes
+    if(master) 
+    {
+        delay(2000);
+        payload = 0x33;
+        bool report = radio.write(&payload, sizeof(payload));
+        if (!report) 
+        {
+            Serial.println(F("Transmission failed or timed out")); // payload was not delivered
+        }
+    }
       
 }
 
@@ -114,71 +148,78 @@ void loop()
 {
 
     if (master) {
-        // This device is a TX node
-        unsigned long start_timer = micros();                    // start the timer
-        bool report = radio.write(&payload, sizeof(float));      // transmit & save the report
-        unsigned long end_timer = micros();                      // end the timer
+        
+        if(digitalRead(PHOTOCELL_DATA_PIN))
+        {
+            payload = 0xAA;
+            // This device is a TX node
+            unsigned long start_timer = micros();                    // start the timer
+            bool report = radio.write(&payload, sizeof(payload));      // transmit & save the report
+            unsigned long end_timer = micros();                      // end the timer
 
-        if (report) 
-        {
-            Serial.print(F("Transmission successful! "));          // payload was delivered
-            Serial.print(F("Time to transmit = "));
-            Serial.print(end_timer - start_timer);                 // print the timer result
-            Serial.print(F(" us. Sent: "));
-            Serial.println(payload);                               // print payload sent
-            payload += 0.5;                                       // increment float payload
-        } 
-        else 
-        {
-            Serial.println(F("Transmission failed or timed out")); // payload was not delivered
+            if (report) 
+            {
+                Serial.print(F("Transmission successful! "));          // payload was delivered
+                Serial.print(F("Time to transmit = "));
+                Serial.print(end_timer - start_timer);                 // print the timer result
+                Serial.print(F(" us. Sent: "));
+                Serial.println(payload);                               // print payload sent
+            } 
+            else 
+            {
+                Serial.println(F("Transmission failed or timed out")); // payload was not delivered
+            }
         }
-
-        // to make this example readable in the serial monitor
-        delay(1000);  // slow transmissions down by 1 second
 
     } 
     else 
-    {
-        // Refresh Display time
+    {   // This device is a RX node                    
+        uint8_t pipe;
+        if (radio.available(&pipe)) 
+        {             // is there a payload? get the pipe number that recieved it
+            uint8_t bytes = radio.getPayloadSize(); // get the size of the payload
+            radio.read(&payload, bytes);            // fetch payload from FIFO
+            
+            if(payload == 0xAA && !running)
+            {
+                //Frame from master Node Start chrono time from zero.
+                start_time = millis(); //the beggining time to use to calculate chrono running time
+                seconds = 0;
+                hundrethseconds = 0;
+                running = true;
+            }
+            else if (payload == 0x33)
+            {
+                //Frame from master Node to reset the counter and put in initial Mode
+                running = false;
+                seconds = 0;
+                hundrethseconds = 0;
+            } 
+            else if(payload == 0xDB)
+            {
+                //Frame from Slave Node, keep incresing time, and send signal to output device
+
+            }       
+            Serial.print(F("Received "));
+            Serial.print(bytes);                    // print the size of the payload
+            Serial.print(F(" bytes on pipe "));
+            Serial.print(pipe);                     // print the pipe number
+            Serial.print(F(": "));
+            Serial.println(payload);                // print the payload's value
+        }
+
         if(running)
         {
             unsigned long current_time = millis();
             Serial.println(current_time);
             seconds = (current_time - start_time) / 1000;
             hundrethseconds = (uint8_t)(((current_time - start_time) % 1000) / 10);
-        }
-        else
-        {
-            seconds = 0;
-            hundrethseconds = 0;
-            
-            
-            // This device is a RX node
-            uint8_t pipe;
-            if (radio.available(&pipe)) 
-            {             // is there a payload? get the pipe number that recieved it
-                uint8_t bytes = radio.getPayloadSize(); // get the size of the payload
-                radio.read(&payload, bytes);            // fetch payload from FIFO
-                
-                if(payload >= 5.0)
-                {
-                    //Frame from master Node Start chrono time from zero.
-                    start_time = millis(); //the beggining time to use to calculate chrono running time
-                    running = true;
-                }
-                else
-                {
-                    //Frame from Slave Node, keep incresing time, and send signal to output device
 
-                }        
-                Serial.print(F("Received "));
-                Serial.print(bytes);                    // print the size of the payload
-                Serial.print(F(" bytes on pipe "));
-                Serial.print(pipe);                     // print the pipe number
-                Serial.print(F(": "));
-                Serial.println(payload);                // print the payload's value
-            }
+            if(photoCellState) {
+                running = false;
+            }           
         }
-        display.printTime(seconds, hundrethseconds, true, 10);
+        
+        display.printTime(seconds, hundrethseconds, true, 10); // Refresh Display time
     } // role
 }
