@@ -7,6 +7,9 @@
 #include "configuration_app.h"
 #include "pins_app.h"
 
+#define SECONDS_OVERFLOW    99
+#define HUNDRETHSSECONDS_OVERFLOW 50
+
 // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN); 
 
@@ -41,7 +44,7 @@ uint8_t seconds = 0;
 uint8_t hundrethseconds = 0;
 bool running = false;
 
-const int timeThreshold = 50;
+const int timeThreshold = 25;
 long startTime = 0;
 bool photoCellState = false;
 
@@ -67,7 +70,6 @@ void setup()
 {
     Serial.begin(115200);
     //while (!Serial) {} // some boards need to wait to ensure access to serial over USB
-    
     // initializes the 7-segment display
     display.begin();            
     display.setBacklight(100); 
@@ -77,7 +79,7 @@ void setup()
     //Initialize Photo Data Cell Pin
     pinMode(PHOTOCELL_DATA_PIN, INPUT);
     attachInterrupt(digitalPinToInterrupt(PHOTOCELL_DATA_PIN), photoCellActivated, CHANGE);
-    delay(1000);
+    delay(500);
     
     // initialize the transceiver on the SPI bus
     if (!radio.begin()) 
@@ -133,7 +135,7 @@ void setup()
     //Send initial frame to all nodes
     if(master) 
     {
-        delay(2000);
+        delay(1000);
         payload = 0x33;
         bool report = radio.write(&payload, sizeof(payload));
         if (!report) 
@@ -171,6 +173,8 @@ void loop()
             }
         }
 
+        //TODO: Logic to reinitialise the whole nodes with a long signal
+
     } 
     else 
     {   // This device is a RX node                    
@@ -198,7 +202,6 @@ void loop()
             else if(payload == 0xDB)
             {
                 //Frame from Slave Node, keep incresing time, and send signal to output device
-
             }       
             Serial.print(F("Received "));
             Serial.print(bytes);                    // print the size of the payload
@@ -215,7 +218,8 @@ void loop()
             seconds = (current_time - start_time) / 1000;
             hundrethseconds = (uint8_t)(((current_time - start_time) % 1000) / 10);
 
-            if(photoCellState) {
+            if(photoCellState || (seconds >= SECONDS_OVERFLOW && hundrethseconds >= HUNDRETHSSECONDS_OVERFLOW)) 
+            {
                 running = false;
             }           
         }
