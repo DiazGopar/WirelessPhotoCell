@@ -6,6 +6,7 @@
 #include "SevenSegmentExtended.h"
 #include "configuration_app.h"
 #include "pins_app.h"
+#include "battery.h"
 
 #define SECONDS_OVERFLOW    99
 #define HUNDRETHSSECONDS_OVERFLOW 50
