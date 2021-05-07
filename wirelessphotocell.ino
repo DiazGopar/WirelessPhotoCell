@@ -74,6 +74,8 @@ void setup()
     display.begin();            
     display.setBacklight(100); 
     display.print(F("INIT"));
+    //Read battery level
+
     //Initialize Configuration Object to determining master or slave functionality
     master = config.readConfiguration();
     //Initialize Photo Data Cell Pin
