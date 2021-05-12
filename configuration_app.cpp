@@ -1,8 +1,7 @@
 #include "configuration_app.h"
 #include "assert.h"
 
-
-Configuration::Configuration(uint16_t pin)
+Configuration::Configuration(uint8_t pin)
 {
     assert(pin != 0);
     _configuration_pin = pin;

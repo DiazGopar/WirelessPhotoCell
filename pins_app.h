@@ -10,8 +10,8 @@
 #define OUTPUT_SIGNAL_PIN       (uint8_t) 4
 #define TM1637_CLK_PIN          (uint8_t) 6
 #define TM1637_DIO_PIN          A3
-#define LED1_PIN                (uint8_t) 9
-#define LED2_PIN                (uint8_t) 10
+#define LED1_PIN                (uint8_t) 9     //Barrier LED
+#define LED2_PIN                (uint8_t) 10    //Mode LED
 #define LIPO_LEVEL_PIN          A0
 
 

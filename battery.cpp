@@ -1,53 +1,50 @@
 #include "battery.h"
-#include "Arduino.h"
-
-class Battery{
-    private:
-        int voltage_mv;
-        int analog_raw;
-        uint8_t battery_pin;
-        uint8_t battery_enable_pin;
-
-        void activateReading();
-        int readRaw();
-        //int readmv();
-
-    public:
-        Battery(uint8_t,uint8_t);
-        byte soc();
-        int readmv();
-};
 
 
-Battery::Battery(uint8_t battery_pin, uint8_t battery_enable_pin)
+
+Battery::Battery(uint8_t battery_analog_pin, uint8_t battery_enable_pin)
 {
     this->battery_pin = battery_pin;
-    this->battery_enable_pin;
+    this->battery_enable_pin = battery_enable_pin;
 
-    pinMode(battery_enable_pin, OUTPUT);
-    digitalWrite(battery_enable_pin, LOW);
+    pinMode(this->battery_enable_pin, OUTPUT);
+    digitalWrite(this->battery_enable_pin, LOW);
     analogReference(DEFAULT);
     this->voltage_mv = 0;
 }
 
 int Battery::readmv()
 {    
-    int voltage_mv = 0;
-    this->voltage_mv = this->readRaw() * 2 * (5 / 1024);  
+    //WORKAROUND for reading battery, onlyu one read dont work
+    for(uint8_t i=0; i < 3; i++)
+    {
+        this->voltage_mv = this->readRaw() * 1.93 /*manual correction factor*/ * (double)(5000.0 / 1024); 
+    }
     return this->voltage_mv;
 }
 
 int Battery::readRaw()
-{
-    this->activateReading();
+{  
+    this->analog_raw = analogRead(this->battery_pin);
+    digitalWrite(this->battery_enable_pin, LOW);
+    this->analog_raw = analogRead(this->battery_pin);
     delayMicroseconds(100);
-    this->analog_raw = analogRead(battery_pin);
+    digitalWrite(this->battery_enable_pin, HIGH);
     return this->analog_raw;
 }
 
 void Battery::activateReading()
 {
-    digitalWrite(battery_enable_pin, HIGH);
-    delayMicroseconds(1);
-    digitalWrite(battery_enable_pin, LOW);
+    digitalWrite(this->battery_enable_pin, LOW);
+    delayMicroseconds(10);
+    digitalWrite(this->battery_enable_pin, HIGH);
+}
+
+byte Battery::soc()
+{
+    int batterymv = this->readmv();
+    byte soc = (0.1255*batterymv - 403.01);
+    //return (byte)-(((batterymv*batterymv*batterymv)*(double)0.0000004) + (batterymv*batterymv*(double)0.004)- (double)14.29*batterymv + 16664);
+    soc = soc > 100 ? 100 : soc;
+    return soc;
 }

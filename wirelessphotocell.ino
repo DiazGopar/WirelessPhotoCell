@@ -37,6 +37,9 @@ uint8_t payload = 0;
 // Used for determining what operation mode use: Master or Slave
 Configuration config = Configuration(OPERATION_MODE_PIN);
 
+//Used to read the battery level
+Battery battery = Battery(LIPO_LEVEL_PIN,ANALOG_ENABLE_PIN);
+
 bool master = false; // true = master, false = slave node. Master is the starting node, and slave are partial timers
 
 unsigned long start_time = 0; //Counter to display time in 7-segments
@@ -57,10 +60,12 @@ void photoCellActivated()
         if(digitalRead(PHOTOCELL_DATA_PIN) == 1)
         {
             photoCellState = true;
+            digitalWrite(LED1_PIN, HIGH);
         }
         else
         {
-            photoCellState = false;   
+            photoCellState = false;
+            digitalWrite(LED1_PIN, LOW);   
         }
         startTime = millis();
     }
@@ -69,14 +74,19 @@ void photoCellActivated()
 
 void setup()
 {
+    //Initialize Onboard LED
+    pinMode(LED1_PIN,OUTPUT); //Barrier Cut ON
+    digitalWrite(LED1_PIN, LOW);
+    pinMode(LED2_PIN,OUTPUT); // Mode LED (ON SLAVE - OFF MASTER)
+    digitalWrite(LED2_PIN, LOW);
+    
     Serial.begin(115200);
     //while (!Serial) {} // some boards need to wait to ensure access to serial over USB
     // initializes the 7-segment display
     display.begin();            
     display.setBacklight(100); 
     display.print(F("INIT"));
-    //Read battery level
-
+    
     //Initialize Configuration Object to determining master or slave functionality
     master = config.readConfiguration();
     //Initialize Photo Data Cell Pin
@@ -84,6 +94,22 @@ void setup()
     attachInterrupt(digitalPinToInterrupt(PHOTOCELL_DATA_PIN), photoCellActivated, CHANGE);
     delay(500);
     
+    //Read battery level
+    //\\\\Serial.print("Battery mv:");
+    Serial.println("ADC Initiating...");
+    int batteryLevel = battery.readmv();
+    batteryLevel = battery.readmv();
+    Serial.println(battery.readmv()); 
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+    Serial.println(battery.readmv());
+
     // initialize the transceiver on the SPI bus
     if (!radio.begin()) 
     {
@@ -91,8 +117,23 @@ void setup()
         display.clear(); //
         display.print(F("ERROR"));
         display.blink(500,30);
-        while (true) {} // hold in infinite loop
+        
+        display.setBacklight(10);
+        display.clear();
+        display.print(F("CHRG"));
+        while (true) {
+            //Probably the module is not Power On, Mayb ein charge battery mode
+            delay(15000);
+            byte soc = battery.soc();
+            Serial.println(battery.readmv());
+            Serial.println(soc);
+            display.printNumber(soc);
+
+        } // hold in infinite loop
     }
+
+    display.setBacklight(100);
+    
     // Set the PA Level low 
     radio.setPALevel(RF24_PA_MAX);  // RF24_PA_MAX is default.
 
@@ -110,6 +151,7 @@ void setup()
         display.clear();
         display.print(F("MSTR"));
         Serial.println(F("Node Configured in Master Mode"));
+        digitalWrite(LED2_PIN,LOW);
         // set the TX address of the RX node into the TX pipe
         radio.openWritingPipe(address[radioNumber]);     // always uses pipe 0
         // set the RX address of the TX node into a RX pipe
@@ -122,6 +164,7 @@ void setup()
         display.clear();
         display.print(F("SLV"));
         Serial.println(F("Node Configured in Slave Mode"));
+        digitalWrite(LED2_PIN,HIGH);
         // set the TX address of the RX node into the TX pipe
         radio.openWritingPipe(address[!radioNumber]);     // always uses pipe 0
         // set the RX address of the TX node into a RX pipe
@@ -146,19 +189,19 @@ void setup()
             Serial.println(F("Transmission failed or timed out")); // payload was not delivered
         }
     }
-      
+ 
 }
 
 void loop()
 {
-
-    if (master) {
-        
+    if (master) /*Master Mode*/
+    {       
         if(digitalRead(PHOTOCELL_DATA_PIN))
         {
             payload = 0xAA;
             // This device is a TX node
-            unsigned long start_timer = micros();                    // start the timer
+            unsigned long start_timer = micros();                   // start the timer
+            //digitalWrite(LED2_PIN,HIGH);                    
             bool report = radio.write(&payload, sizeof(payload));      // transmit & save the report
             unsigned long end_timer = micros();                      // end the timer
 
@@ -175,11 +218,16 @@ void loop()
                 Serial.println(F("Transmission failed or timed out")); // payload was not delivered
             }
         }
+        else
+        {
+            //digitalWrite(LED1_PIN,LOW);
+        }
+        
 
         //TODO: Logic to reinitialise the whole nodes with a long signal
 
     } 
-    else 
+    else /* SLAVE Mode */
     {   // This device is a RX node                    
         uint8_t pipe;
         if (radio.available(&pipe)) 
