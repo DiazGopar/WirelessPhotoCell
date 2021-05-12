@@ -83,7 +83,8 @@ void setup()
     Serial.begin(115200);
     //while (!Serial) {} // some boards need to wait to ensure access to serial over USB
     // initializes the 7-segment display
-    display.begin();            
+    display.begin();
+    display.setPrintDelay(500);            
     display.setBacklight(100); 
     display.print(F("INIT"));
     
@@ -95,40 +96,33 @@ void setup()
     delay(500);
     
     //Read battery level
-    //\\\\Serial.print("Battery mv:");
     Serial.println("ADC Initiating...");
     int batteryLevel = battery.readmv();
     batteryLevel = battery.readmv();
     Serial.println(battery.readmv()); 
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
-    Serial.println(battery.readmv());
 
     // initialize the transceiver on the SPI bus
     if (!radio.begin()) 
     {
+        const uint8_t message_radio[] = "RADIO NOT RESPONDING!!!";
         Serial.println(F("radio hardware is not responding!!"));
         display.clear(); //
-        display.print(F("ERROR"));
-        display.blink(500,30);
+
+        display.write(message_radio,21);
+        //display.blink(500,5);
         
-        display.setBacklight(10);
+        display.setBacklight(50);
         display.clear();
-        display.print(F("CHRG"));
+        const uint8_t message_charging[] = "BATTERY CHARGING!!!";
+        display.write(message_charging,20);
+        display.setBacklight(10);
         while (true) {
             //Probably the module is not Power On, Mayb ein charge battery mode
-            delay(15000);
             byte soc = battery.soc();
             Serial.println(battery.readmv());
             Serial.println(soc);
             display.printNumber(soc);
-
+            delay(15000);
         } // hold in infinite loop
     }
 
@@ -153,9 +147,9 @@ void setup()
         Serial.println(F("Node Configured in Master Mode"));
         digitalWrite(LED2_PIN,LOW);
         // set the TX address of the RX node into the TX pipe
-        radio.openWritingPipe(address[radioNumber]);     // always uses pipe 0
+        radio.openWritingPipe(address[radioNumber]);     
         // set the RX address of the TX node into a RX pipe
-        radio.openReadingPipe(1, address[!radioNumber]); // using pipe 1
+        radio.openReadingPipe(1, address[!radioNumber]); 
         radio.stopListening();  // put radio in TX mode
     }  
     else
@@ -166,9 +160,9 @@ void setup()
         Serial.println(F("Node Configured in Slave Mode"));
         digitalWrite(LED2_PIN,HIGH);
         // set the TX address of the RX node into the TX pipe
-        radio.openWritingPipe(address[!radioNumber]);     // always uses pipe 0
+        radio.openWritingPipe(address[!radioNumber]);     
         // set the RX address of the TX node into a RX pipe
-        radio.openReadingPipe(1, address[radioNumber]); // using pipe 1
+        radio.openReadingPipe(1, address[radioNumber]); 
         radio.startListening(); // put radio in RX mode
     }
     display.blink(500);
