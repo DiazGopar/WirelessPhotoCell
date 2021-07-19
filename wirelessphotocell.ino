@@ -7,15 +7,31 @@
 #include "configuration_app.h"
 #include "pins_app.h"
 #include "battery.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_SSD1306.h"
+
+#define SCREEN_WIDTH    128 // OLED display width, in pixels
+#define SCREEN_HEIGHT   32 // OLED display height, in pixels
+#define OLED_RESET      -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS  0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
 #define SECONDS_OVERFLOW    99
 #define HUNDRETHSSECONDS_OVERFLOW 50
+
+#define OLED 1
+#define SEVENSEGMENT 1
+
+#ifdef OLED
+Adafruit_SSD1306 oled_display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+#endif
 
 // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN); 
 
 // initialize global TM1637 Display object
+#ifdef SEVENSEGMENT
 SevenSegmentExtended      display(TM1637_CLK_PIN, TM1637_DIO_PIN);
+#endif
 
 // Let these addresses be used for the pair
 uint8_t address[][6] = {"1Node", "2Node"};
@@ -29,9 +45,7 @@ bool radioNumber = 1; // 0 uses address[0] to transmit, 1 uses address[1] to tra
 // Used to control whether this node is sending or receiving
 //bool role = false;  // true = TX role, false = RX role
 
-// For this example, we'll be using a payload containing
-// a single float number that will be incremented
-// on every successful transmission
+//Command to send the other modules
 uint8_t payload = 0;
 
 // Used for determining what operation mode use: Master or Slave
@@ -79,15 +93,38 @@ void setup()
     digitalWrite(LED1_PIN, LOW);
     pinMode(LED2_PIN,OUTPUT); // Mode LED (ON SLAVE - OFF MASTER)
     digitalWrite(LED2_PIN, LOW);
-    
+
+    //Initialize output PIN
+    pinMode(OUTPUT_SIGNAL_PIN, OUTPUT);
+    digitalWrite(OUTPUT_SIGNAL_PIN, HIGH);
+
     Serial.begin(115200);
     //while (!Serial) {} // some boards need to wait to ensure access to serial over USB
     // initializes the 7-segment display
+#ifdef SEVENSEGMENT
     display.begin();
     display.setPrintDelay(500);            
     display.setBacklight(100); 
     display.print(F("INIT"));
-    
+#endif
+#ifdef OLED
+    //Initialize LCD
+    if(!oled_display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) 
+    {
+        Serial.println(F("SSD1306 allocation failed"));
+        for(;;); // Don't proceed, loop forever
+    }
+    // Show initial display buffer contents on the screen --
+    // the library initializes this with an Adafruit splash screen.
+    oled_display.display();
+    //oled_display.clearDisplay();
+    delay(2000); // Pause for 2 seconds
+    // Clear the buffer
+    oled_display.clearDisplay();
+#endif
+
+
+
     //Initialize Configuration Object to determining master or slave functionality
     master = config.readConfiguration();
     //Initialize Photo Data Cell Pin
@@ -105,28 +142,50 @@ void setup()
     if (!radio.begin()) 
     {
         const uint8_t message_radio[] = "RADIO NOT RESPONDING!!!";
+        const uint8_t message_charging[] = "BATTERY CHARGING!!!";
         Serial.println(F("radio hardware is not responding!!"));
+#ifdef SEVENSEGMENT
         display.clear(); //
-
         display.write(message_radio,21);
-        //display.blink(500,5);
-        
         display.setBacklight(50);
         display.clear();
-        const uint8_t message_charging[] = "BATTERY CHARGING!!!";
         display.write(message_charging,20);
         display.setBacklight(10);
+#endif
+#ifdef OLED
+        oled_display.clearDisplay(); //
+        oled_display.setTextSize(1);             // Normal 1:1 pixel scale
+        oled_display.setTextColor(SSD1306_WHITE);        // Draw white text
+        oled_display.setCursor(0,0); 
+        oled_display.println(F("RADIO NOT RESPONDING!!!"));
+        oled_display.clearDisplay();
+        //oled_display.clear();
+        oled_display.println(F("BATTERY CHARGING!!!"));
+        oled_display.display();
+#endif
         while (true) {
-            //Probably the module is not Power On, Mayb ein charge battery mode
+            //Probably the module is not Power On, Maybe in charge battery mode
             byte soc = battery.soc();
             Serial.println(battery.readmv());
             Serial.println(soc);
+#ifdef SEVENSEGMENT
             display.printNumber(soc);
+#endif
+#ifdef OLED
+            oled_display.clearDisplay(); //
+            oled_display.setTextSize(4);             // Normal 1:1 pixel scale
+            oled_display.setTextColor(SSD1306_WHITE);        // Draw white text
+            oled_display.setCursor(0,0); 
+            oled_display.print(soc);
+            oled_display.display();
+#endif
             delay(15000);
         } // hold in infinite loop
     }
 
+#ifdef SEVENSEGMENT
     display.setBacklight(100);
+#endif
     
     // Set the PA Level low 
     radio.setPALevel(RF24_PA_MAX);  // RF24_PA_MAX is default.
@@ -142,8 +201,18 @@ void setup()
     if(master)
     {
         //Config like transmiter node.
+#ifdef SEVENSEGMENT
         display.clear();
         display.print(F("MSTR"));
+#endif
+#ifdef OLED
+        oled_display.clearDisplay(); //
+        oled_display.setTextSize(4);             // Normal 1:1 pixel scale
+        oled_display.setTextColor(SSD1306_WHITE);        // Draw white text
+        oled_display.setCursor(0,0); 
+        oled_display.print(F("MASTER"));
+        oled_display.display();
+#endif
         Serial.println(F("Node Configured in Master Mode"));
         digitalWrite(LED2_PIN,LOW);
         // set the TX address of the RX node into the TX pipe
@@ -155,8 +224,18 @@ void setup()
     else
     {
         //Config like a receiver node.
+#ifdef SEVENSEGMENT
         display.clear();
         display.print(F("SLV"));
+#endif
+#ifdef OLED
+        oled_display.clearDisplay(); //        
+        oled_display.setTextSize(4);             // Normal 1:1 pixel scale
+        oled_display.setTextColor(SSD1306_WHITE);        // Draw white text
+        oled_display.setCursor(0,0); 
+        oled_display.print(F("SLAVE"));
+        oled_display.display();
+#endif
         Serial.println(F("Node Configured in Slave Mode"));
         digitalWrite(LED2_PIN,HIGH);
         // set the TX address of the RX node into the TX pipe
@@ -165,7 +244,9 @@ void setup()
         radio.openReadingPipe(1, address[radioNumber]); 
         radio.startListening(); // put radio in RX mode
     }
+#ifdef SEVENSEGMENT
     display.blink(500);
+#endif
 
     // For debugging info
     printf_begin();             // needed only once for printing details
@@ -188,10 +269,14 @@ void setup()
 
 void loop()
 {
+    static long pressed_time = 0;
+    
     if (master) /*Master Mode*/
     {       
-        if(digitalRead(PHOTOCELL_DATA_PIN))
+        if(photoCellState)
         {
+            
+            //if(millis() - pressed_time <= )
             payload = 0xAA;
             // This device is a TX node
             unsigned long start_timer = micros();                   // start the timer
@@ -214,6 +299,11 @@ void loop()
         }
         else
         {
+            //if(pressed_time > 3 segundos)
+            //{
+                //Send a reset 
+            //}
+            pressed_time = 0;
             //digitalWrite(LED1_PIN,LOW);
         }
         
@@ -246,6 +336,7 @@ void loop()
             } 
             else if(payload == 0xDB)
             {
+                //TODO: Activate the output
                 //Frame from Slave Node, keep incresing time, and send signal to output device
             }       
             Serial.print(F("Received "));
@@ -268,7 +359,18 @@ void loop()
                 running = false;
             }           
         }
-        
+#ifdef SEVENSEGMENT        
         display.printTime(seconds, hundrethseconds, true, 10); // Refresh Display time
+#endif
+#ifdef OLED
+        oled_display.clearDisplay(); //        
+        oled_display.setTextSize(4);             // Normal 1:1 pixel scale
+        oled_display.setTextColor(SSD1306_WHITE);        // Draw white text
+        oled_display.setCursor(0,0); 
+        oled_display.print(seconds);
+        oled_display.print(":");
+        oled_display.print(hundrethseconds);
+        oled_display.display();
+#endif
     } // role
 }
